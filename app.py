@@ -16,7 +16,9 @@ if "started" not in st.session_state:
 
 st.title("📚 Laguna College Modular Learning System")
 
-# ---------------- LOGIN ----------------
+# =========================================================
+# ---------------- LOGIN SCREEN ---------------------------
+# =========================================================
 if not st.session_state.started:
 
     role = st.selectbox("Login as:", ["Student", "Teacher"])
@@ -35,11 +37,47 @@ if not st.session_state.started:
     st.stop()
 
 # =========================================================
-# ---------------- TEACHER DASHBOARD ----------------------
+# ---------------- TEACHER SYSTEM -------------------------
 # =========================================================
 if st.session_state.role == "Teacher":
 
     st.header(f"👩‍🏫 Teacher Dashboard — {st.session_state.name}")
+
+    # ---------------- MODULE BUILDER ----------------
+    st.markdown("## 🧩 Module Builder")
+
+    new_subject = st.text_input("New Subject Name")
+
+    if st.button("Create Subject"):
+        if new_subject:
+            os.makedirs(os.path.join(MODULES_FOLDER, new_subject), exist_ok=True)
+            st.success(f"Subject '{new_subject}' created")
+
+    subjects = [
+        d for d in os.listdir(MODULES_FOLDER)
+        if os.path.isdir(os.path.join(MODULES_FOLDER, d))
+    ]
+
+    if subjects:
+        selected_subject = st.selectbox("Select Subject", subjects)
+
+        lesson_title = st.text_input("Lesson Title")
+        lesson_content = st.text_area("Lesson Content (cards, images, quiz format)")
+
+        if st.button("Save Lesson"):
+            if lesson_title and lesson_content:
+                filename = lesson_title.replace(" ", "_") + ".txt"
+                path = os.path.join(MODULES_FOLDER, selected_subject, filename)
+
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write(lesson_content)
+
+                st.success("Lesson saved successfully")
+
+    st.markdown("---")
+
+    # ---------------- PROGRESS VIEW ----------------
+    st.markdown("## 📊 Student Progress Overview")
 
     files = [f for f in os.listdir(DATA_FOLDER) if f.endswith(".json")]
 
@@ -54,15 +92,23 @@ if st.session_state.role == "Teacher":
             with open(os.path.join(DATA_FOLDER, file), "r") as f:
                 progress = json.load(f)
 
+            if not progress:
+                st.write("No completed lessons yet.")
+                continue
+
             completed = sum(progress.values())
             total = len(progress)
 
-            if total > 0:
-                percent = int((completed / total) * 100)
-                st.progress(percent / 100)
-                st.write(f"{percent}% completed")
+            percent = int((completed / total) * 100) if total > 0 else 0
 
-            st.json(progress)
+            st.progress(percent / 100)
+            st.write(f"Completion Rate: {percent}%")
+
+            st.markdown("### Lesson Status:")
+
+            for lesson_id, status in progress.items():
+                status_text = "✅ Completed" if status else "❌ Not completed"
+                st.write(f"- {lesson_id}: {status_text}")
 
     st.stop()
 
