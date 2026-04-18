@@ -1,39 +1,34 @@
 import streamlit as st
 import os
+import json
 
-st.set_page_config(page_title="Learning Modules", layout="wide")
+st.set_page_config(page_title="LC Modular Learning", layout="wide")
 
 MODULES_FOLDER = "modules"
+DATA_FOLDER = "data"
 
-ACCESS_CODES = {
-    "STUD123": "student",
-    "TEACH123": "teacher",
-}
-
-if not os.path.exists(MODULES_FOLDER):
-    os.makedirs(MODULES_FOLDER)
+if not os.path.exists(DATA_FOLDER):
+    os.makedirs(DATA_FOLDER)
 
 # ---------- LOGIN ----------
-st.title("📚 Laguna College Learning Modules")
+st.title("📚 Laguna College Modular Learning System")
 
-if "role" not in st.session_state:
-    st.session_state.role = None
+name = st.text_input("Enter your full name to start")
 
-if st.session_state.role is None:
-    code = st.text_input("Enter Access Code", type="password")
-    if st.button("Login"):
-        if code in ACCESS_CODES:
-            st.session_state.role = ACCESS_CODES[code]
-            st.success(f"Logged in as {st.session_state.role}")
-        else:
-            st.error("Invalid code")
+if not name:
     st.stop()
 
-role = st.session_state.role
+student_file = os.path.join(DATA_FOLDER, f"{name}.json")
 
-if st.sidebar.button("Logout"):
-    st.session_state.role = None
-    st.rerun()
+if os.path.exists(student_file):
+    with open(student_file, "r") as f:
+        progress = json.load(f)
+else:
+    progress = {}
+
+def save_progress():
+    with open(student_file, "w") as f:
+        json.dump(progress, f)
 
 # ---------- FUNCTIONS ----------
 def list_subjects():
@@ -77,37 +72,17 @@ def parse_lesson(content):
 
     return cards, quiz
 
-# ---------- TEACHER PANEL ----------
-if role == "teacher":
-    st.sidebar.header("👩‍🏫 Teacher Panel")
-
-    new_subject = st.sidebar.text_input("New Subject")
-    if st.sidebar.button("Create Subject"):
-        os.makedirs(os.path.join(MODULES_FOLDER, new_subject), exist_ok=True)
-        st.sidebar.success("Subject created")
-
-    subjects = list_subjects()
-    if subjects:
-        subject_choice = st.sidebar.selectbox("Select Subject", subjects)
-
-        lesson_title = st.sidebar.text_input("Lesson Title")
-        lesson_text = st.sidebar.text_area("Paste Lesson Content")
-
-        if st.sidebar.button("Save Lesson"):
-            filename = lesson_title.replace(" ", "_") + ".txt"
-            lesson_path = os.path.join(MODULES_FOLDER, subject_choice, filename)
-            with open(lesson_path, "w", encoding="utf-8") as f:
-                f.write(lesson_text)
-            st.sidebar.success("Lesson saved")
-
-# ---------- STUDENT VIEW ----------
-st.sidebar.header("📖 Lessons")
-
+# ---------- SUBJECT / LESSON ----------
 subjects = list_subjects()
 subject = st.sidebar.selectbox("Select Subject", subjects)
 
 lessons = list_lessons(subject)
 lesson = st.sidebar.selectbox("Select Lesson", lessons)
+
+lesson_id = f"{subject}-{lesson}"
+
+if lesson_id not in progress:
+    progress[lesson_id] = False
 
 lesson_path = os.path.join(MODULES_FOLDER, subject, lesson)
 
@@ -116,25 +91,20 @@ with open(lesson_path, "r", encoding="utf-8") as file:
 
 cards, quiz = parse_lesson(content)
 
-# Track card position
 if "card_index" not in st.session_state:
     st.session_state.card_index = 0
 
-total_cards = len(cards)
 index = st.session_state.card_index
+total_cards = len(cards)
 
 st.markdown(f"### Card {index+1} of {total_cards}")
 
 card_type, card_content = cards[index]
 
-st.markdown("<div style='padding:20px;border-radius:12px;border:1px solid #ddd;background:#f9f9f9'>", unsafe_allow_html=True)
-
 if card_type == "text":
     st.write(card_content)
 elif card_type == "image":
     st.image(card_content)
-
-st.markdown("</div>", unsafe_allow_html=True)
 
 col1, col2 = st.columns(2)
 
@@ -148,13 +118,26 @@ with col2:
         st.session_state.card_index += 1
         st.rerun()
 
-# Show quiz only after last card
+# ---------- QUIZ ----------
 if index == total_cards - 1 and quiz:
     st.markdown("---")
     question, options, answer = quiz
     choice = st.radio(question, options)
-    if st.button("Check Answer"):
+    if st.button("Submit Answer"):
         if choice.startswith(answer):
-            st.success("Correct!")
+            st.success("Correct! Lesson completed.")
+            progress[lesson_id] = True
+            save_progress()
         else:
             st.error("Try again.")
+
+# ---------- PROGRESS DISPLAY ----------
+st.sidebar.markdown("## 📊 Your Progress")
+
+completed = sum(progress.values())
+total = len(progress)
+
+if total > 0:
+    percent = int((completed / total) * 100)
+    st.sidebar.progress(percent / 100)
+    st.sidebar.write(f"{percent}% lessons completed")
