@@ -44,25 +44,32 @@ def list_lessons(subject):
     return [f for f in os.listdir(subject_path) if f.endswith(".txt")]
 
 def display_content(content):
-    parts = content.split("\n\n")
-    for part in parts:
-        part = part.strip()
+    lines = content.split("\n")
+    i = 0
 
-        if part.startswith("[image:"):
-            url = part.replace("[image:", "").replace("]", "").strip()
+    while i < len(lines):
+        line = lines[i].strip()
+
+        # IMAGE
+        if line.startswith("[image:"):
+            url = line.replace("[image:", "").replace("]", "").strip()
             st.image(url)
+            i += 1
 
-        elif part.startswith("QUESTION:"):
-            question = part.replace("QUESTION:", "").strip()
+        # QUESTION BLOCK
+        elif line.startswith("QUESTION:"):
+            question = line.replace("QUESTION:", "").strip()
             options = []
             answer = ""
-            # Read next lines for options and answer
-            lines = parts[parts.index(part)+1 : parts.index(part)+5]
-            for line in lines:
-                if line.startswith("A.") or line.startswith("B.") or line.startswith("C.") or line.startswith("D."):
-                    options.append(line)
-                if line.startswith("ANSWER:"):
-                    answer = line.replace("ANSWER:", "").strip()
+
+            i += 1
+            while i < len(lines) and lines[i].strip() != "":
+                opt_line = lines[i].strip()
+                if opt_line.startswith(("A.", "B.", "C.", "D.")):
+                    options.append(opt_line)
+                if opt_line.startswith("ANSWER:"):
+                    answer = opt_line.replace("ANSWER:", "").strip()
+                i += 1
 
             choice = st.radio(question, options, key=question)
             if st.button("Check Answer", key=question+"btn"):
@@ -71,13 +78,18 @@ def display_content(content):
                 else:
                     st.error("Try again.")
 
-        else:
+        # NORMAL TEXT → CARD
+        elif line != "":
             st.markdown(f"""
             <div style='padding:15px;margin:10px 0;border-radius:10px;
             border:1px solid #ddd;background-color:#f9f9f9'>
-            {part}
+            {line}
             </div>
             """, unsafe_allow_html=True)
+            i += 1
+
+        else:
+            i += 1
 
 # ---------- TEACHER PANEL ----------
 if role == "teacher":
