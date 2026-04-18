@@ -14,25 +14,50 @@ if not os.path.exists(DATA_FOLDER):
 if "started" not in st.session_state:
     st.session_state.started = False
 
-# ---------------- TITLE ----------------
 st.title("📚 Laguna College Modular Learning System")
 
-# ---------------- LOGIN SCREEN ----------------
+# ---------------- LOGIN ----------------
 if not st.session_state.started:
 
+    role = st.selectbox("Login as:", ["Student", "Teacher"])
     name = st.text_input("Enter your full name")
 
-    if st.button("Start Learning") and name:
-
+    if st.button("Enter System") and name:
         st.session_state.clear()
         st.session_state.started = True
         st.session_state.name = name
+        st.session_state.role = role
         st.session_state.card_index = 0
-
         st.rerun()
 
-# ---------------- MAIN LEARNING SYSTEM ----------------
-if st.session_state.started:
+# ---------------- TEACHER DASHBOARD ----------------
+if st.session_state.started and st.session_state.role == "Teacher":
+
+    st.header(f"👩‍🏫 Teacher Dashboard — {st.session_state.name}")
+
+    files = [f for f in os.listdir(DATA_FOLDER) if f.endswith(".json")]
+
+    if not files:
+        st.write("No student data yet.")
+    else:
+        for file in files:
+            student_name = file.replace(".json", "")
+            st.subheader(f"👤 {student_name}")
+
+            with open(os.path.join(DATA_FOLDER, file), "r") as f:
+                progress = json.load(f)
+
+            completed = sum(progress.values())
+            total = len(progress)
+
+            if total > 0:
+                percent = int((completed / total) * 100)
+                st.progress(percent / 100)
+                st.write(f"{percent}% completed")
+            st.write(progress)
+
+# ---------------- STUDENT LEARNING SYSTEM ----------------
+if st.session_state.started and st.session_state.role == "Student":
 
     name = st.session_state.name
     student_file = os.path.join(DATA_FOLDER, f"{name}.json")
@@ -47,7 +72,6 @@ if st.session_state.started:
         with open(student_file, "w") as f:
             json.dump(progress, f)
 
-    # ---------- FUNCTIONS ----------
     def list_subjects():
         return [
             d for d in os.listdir(MODULES_FOLDER)
@@ -111,7 +135,6 @@ if st.session_state.started:
 
     cards, quiz = parse_lesson(content)
 
-    # ---------- CARD NAVIGATION ----------
     index = st.session_state.card_index
     total_cards = len(cards)
 
@@ -149,9 +172,8 @@ if st.session_state.started:
             else:
                 st.error("Try again.")
 
-    # ---------- PROGRESS DISPLAY ----------
+    # ---------- PROGRESS ----------
     st.sidebar.markdown("## 📊 Your Progress")
-
     completed = sum(progress.values())
     total = len(progress)
 
