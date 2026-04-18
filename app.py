@@ -43,53 +43,39 @@ def list_lessons(subject):
     subject_path = os.path.join(MODULES_FOLDER, subject)
     return [f for f in os.listdir(subject_path) if f.endswith(".txt")]
 
-def display_content(content):
+def parse_lesson(content):
     lines = content.split("\n")
+    cards = []
+    quiz = None
     i = 0
 
     while i < len(lines):
         line = lines[i].strip()
 
-        # IMAGE
         if line.startswith("[image:"):
             url = line.replace("[image:", "").replace("]", "").strip()
-            st.image(url)
-            i += 1
+            cards.append(("image", url))
 
-        # QUESTION BLOCK
         elif line.startswith("QUESTION:"):
             question = line.replace("QUESTION:", "").strip()
             options = []
             answer = ""
-
             i += 1
             while i < len(lines) and lines[i].strip() != "":
-                opt_line = lines[i].strip()
-                if opt_line.startswith(("A.", "B.", "C.", "D.")):
-                    options.append(opt_line)
-                if opt_line.startswith("ANSWER:"):
-                    answer = opt_line.replace("ANSWER:", "").strip()
+                l = lines[i].strip()
+                if l.startswith(("A.", "B.", "C.", "D.")):
+                    options.append(l)
+                if l.startswith("ANSWER:"):
+                    answer = l.replace("ANSWER:", "").strip()
                 i += 1
+            quiz = (question, options, answer)
 
-            choice = st.radio(question, options, key=question)
-            if st.button("Check Answer", key=question+"btn"):
-                if choice.startswith(answer):
-                    st.success("Correct!")
-                else:
-                    st.error("Try again.")
-
-        # NORMAL TEXT → CARD
         elif line != "":
-            st.markdown(f"""
-            <div style='padding:15px;margin:10px 0;border-radius:10px;
-            border:1px solid #ddd;background-color:#f9f9f9'>
-            {line}
-            </div>
-            """, unsafe_allow_html=True)
-            i += 1
+            cards.append(("text", line))
 
-        else:
-            i += 1
+        i += 1
+
+    return cards, quiz
 
 # ---------- TEACHER PANEL ----------
 if role == "teacher":
@@ -128,5 +114,47 @@ lesson_path = os.path.join(MODULES_FOLDER, subject, lesson)
 with open(lesson_path, "r", encoding="utf-8") as file:
     content = file.read()
 
-st.markdown(f"## {lesson.replace('.txt','')}")
-display_content(content)
+cards, quiz = parse_lesson(content)
+
+# Track card position
+if "card_index" not in st.session_state:
+    st.session_state.card_index = 0
+
+total_cards = len(cards)
+index = st.session_state.card_index
+
+st.markdown(f"### Card {index+1} of {total_cards}")
+
+card_type, card_content = cards[index]
+
+st.markdown("<div style='padding:20px;border-radius:12px;border:1px solid #ddd;background:#f9f9f9'>", unsafe_allow_html=True)
+
+if card_type == "text":
+    st.write(card_content)
+elif card_type == "image":
+    st.image(card_content)
+
+st.markdown("</div>", unsafe_allow_html=True)
+
+col1, col2 = st.columns(2)
+
+with col1:
+    if st.button("⬅️ Previous") and index > 0:
+        st.session_state.card_index -= 1
+        st.rerun()
+
+with col2:
+    if st.button("Next ➡️") and index < total_cards - 1:
+        st.session_state.card_index += 1
+        st.rerun()
+
+# Show quiz only after last card
+if index == total_cards - 1 and quiz:
+    st.markdown("---")
+    question, options, answer = quiz
+    choice = st.radio(question, options)
+    if st.button("Check Answer"):
+        if choice.startswith(answer):
+            st.success("Correct!")
+        else:
+            st.error("Try again.")
