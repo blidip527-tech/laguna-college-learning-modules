@@ -2,7 +2,7 @@ import streamlit as st
 import os
 import json
 
-st.set_page_config(page_title="LC Modular Learning", layout="wide")
+st.set_page_config(page_title="LC Modular Learning System", layout="wide")
 
 MODULES_FOLDER = "modules"
 DATA_FOLDER = "data"
@@ -23,24 +23,31 @@ if not st.session_state.started:
     name = st.text_input("Enter your full name")
 
     if st.button("Enter System") and name:
+
         st.session_state.clear()
         st.session_state.started = True
         st.session_state.name = name
         st.session_state.role = role
         st.session_state.card_index = 0
+
         st.rerun()
 
-# ---------------- TEACHER DASHBOARD ----------------
-if st.session_state.started and st.session_state.role == "Teacher":
+    st.stop()
+
+# =========================================================
+# ---------------- TEACHER DASHBOARD ----------------------
+# =========================================================
+if st.session_state.role == "Teacher":
 
     st.header(f"👩‍🏫 Teacher Dashboard — {st.session_state.name}")
 
     files = [f for f in os.listdir(DATA_FOLDER) if f.endswith(".json")]
 
     if not files:
-        st.write("No student data yet.")
+        st.info("No student data available yet.")
     else:
         for file in files:
+
             student_name = file.replace(".json", "")
             st.subheader(f"👤 {student_name}")
 
@@ -54,10 +61,15 @@ if st.session_state.started and st.session_state.role == "Teacher":
                 percent = int((completed / total) * 100)
                 st.progress(percent / 100)
                 st.write(f"{percent}% completed")
-            st.write(progress)
 
-# ---------------- STUDENT LEARNING SYSTEM ----------------
-if st.session_state.started and st.session_state.role == "Student":
+            st.json(progress)
+
+    st.stop()
+
+# =========================================================
+# ---------------- STUDENT SYSTEM -------------------------
+# =========================================================
+if st.session_state.role == "Student":
 
     name = st.session_state.name
     student_file = os.path.join(DATA_FOLDER, f"{name}.json")
@@ -72,6 +84,7 @@ if st.session_state.started and st.session_state.role == "Student":
         with open(student_file, "w") as f:
             json.dump(progress, f)
 
+    # ---------- FUNCTIONS ----------
     def list_subjects():
         return [
             d for d in os.listdir(MODULES_FOLDER)
@@ -99,6 +112,7 @@ if st.session_state.started and st.session_state.role == "Student":
                 question = line.replace("QUESTION:", "").strip()
                 options = []
                 answer = ""
+
                 i += 1
                 while i < len(lines) and lines[i].strip() != "":
                     l = lines[i].strip()
@@ -107,6 +121,7 @@ if st.session_state.started and st.session_state.role == "Student":
                     if l.startswith("ANSWER:"):
                         answer = l.replace("ANSWER:", "").strip()
                     i += 1
+
                 quiz = (question, options, answer)
 
             elif line != "":
@@ -135,6 +150,7 @@ if st.session_state.started and st.session_state.role == "Student":
 
     cards, quiz = parse_lesson(content)
 
+    # ---------- CARD NAVIGATION ----------
     index = st.session_state.card_index
     total_cards = len(cards)
 
@@ -164,6 +180,7 @@ if st.session_state.started and st.session_state.role == "Student":
         st.markdown("---")
         question, options, answer = quiz
         choice = st.radio(question, options)
+
         if st.button("Submit Answer"):
             if choice.startswith(answer):
                 st.success("Correct! Lesson completed.")
@@ -174,10 +191,11 @@ if st.session_state.started and st.session_state.role == "Student":
 
     # ---------- PROGRESS ----------
     st.sidebar.markdown("## 📊 Your Progress")
+
     completed = sum(progress.values())
     total = len(progress)
 
     if total > 0:
         percent = int((completed / total) * 100)
         st.sidebar.progress(percent / 100)
-        st.sidebar.write(f"{percent}% lessons completed")
+        st.sidebar.write(f"{percent}% completed")
