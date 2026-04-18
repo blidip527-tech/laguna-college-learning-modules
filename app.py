@@ -43,15 +43,41 @@ def list_lessons(subject):
     subject_path = os.path.join(MODULES_FOLDER, subject)
     return [f for f in os.listdir(subject_path) if f.endswith(".txt")]
 
-def display_cards(content):
-    cards = content.split("\n\n")
-    for card in cards:
-        st.markdown(f"""
-        <div style='padding:15px;margin:10px 0;border-radius:10px;
-        border:1px solid #ddd;background-color:#f9f9f9'>
-        {card}
-        </div>
-        """, unsafe_allow_html=True)
+def display_content(content):
+    parts = content.split("\n\n")
+    for part in parts:
+        part = part.strip()
+
+        if part.startswith("[image:"):
+            url = part.replace("[image:", "").replace("]", "").strip()
+            st.image(url)
+
+        elif part.startswith("QUESTION:"):
+            question = part.replace("QUESTION:", "").strip()
+            options = []
+            answer = ""
+            # Read next lines for options and answer
+            lines = parts[parts.index(part)+1 : parts.index(part)+5]
+            for line in lines:
+                if line.startswith("A.") or line.startswith("B.") or line.startswith("C.") or line.startswith("D."):
+                    options.append(line)
+                if line.startswith("ANSWER:"):
+                    answer = line.replace("ANSWER:", "").strip()
+
+            choice = st.radio(question, options, key=question)
+            if st.button("Check Answer", key=question+"btn"):
+                if choice.startswith(answer):
+                    st.success("Correct!")
+                else:
+                    st.error("Try again.")
+
+        else:
+            st.markdown(f"""
+            <div style='padding:15px;margin:10px 0;border-radius:10px;
+            border:1px solid #ddd;background-color:#f9f9f9'>
+            {part}
+            </div>
+            """, unsafe_allow_html=True)
 
 # ---------- TEACHER PANEL ----------
 if role == "teacher":
@@ -67,7 +93,7 @@ if role == "teacher":
         subject_choice = st.sidebar.selectbox("Select Subject", subjects)
 
         lesson_title = st.sidebar.text_input("Lesson Title")
-        lesson_text = st.sidebar.text_area("Paste Lesson Content (separate ideas by blank lines)")
+        lesson_text = st.sidebar.text_area("Paste Lesson Content")
 
         if st.sidebar.button("Save Lesson"):
             filename = lesson_title.replace(" ", "_") + ".txt"
@@ -91,4 +117,4 @@ with open(lesson_path, "r", encoding="utf-8") as file:
     content = file.read()
 
 st.markdown(f"## {lesson.replace('.txt','')}")
-display_cards(content)
+display_content(content)
