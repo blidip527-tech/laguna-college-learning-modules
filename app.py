@@ -13,10 +13,19 @@ if not os.path.exists(DATA_FOLDER):
 # ---------- LOGIN ----------
 st.title("📚 Laguna College Modular Learning System")
 
-name = st.text_input("Enter your full name to start")
+name = st.text_input("Enter your full name")
 
-if not name:
-    st.stop()
+if st.button("Start Learning") and name:
+
+    # ✅ RESET EVERYTHING FOR NEW USER
+    st.session_state.clear()
+
+    st.session_state.name = name
+    st.session_state.page = 0
+    st.session_state.answers = {}
+    st.session_state.started = True
+
+    st.rerun()
 
 student_file = os.path.join(DATA_FOLDER, f"{name}.json")
 
